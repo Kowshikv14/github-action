@@ -3,7 +3,13 @@ import re
 
 def scrape_all_numbers():
     seeds = range(73, 83)  # 73 to 82
-    base_url = "https://sanand0.github.io/tdsdata/seed{}/"
+    # Try multiple URL patterns
+    url_patterns = [
+        "https://sanand0.github.io/tdsdata/seed{}.html",
+        "https://sanand0.github.io/tdsdata/seed{}/",
+        "https://sanand0.github.io/tdsdata/seed{}",
+        "https://sanand0.github.io/tdsdata/tables/seed{}.html",
+    ]
     
     total_sum = 0
     successful_scrapes = 0
@@ -13,45 +19,57 @@ def scrape_all_numbers():
         page = browser.new_page()
         
         for seed in seeds:
-            url = base_url.format(seed)
-            print(f"\nScraping {url}")
-            
-            try:
-                response = page.goto(url, wait_until="networkidle", timeout=30000)
+            found = False
+            for url_pattern in url_patterns:
+                url = url_pattern.format(seed)
+                print(f"\nTrying {url}")
                 
-                if response.status != 200:
-                    print(f"  ❌ Page returned status {response.status}")
-                    continue
-                
-                # Get all table elements
-                tables = page.query_selector_all("table")
-                print(f"  Found {len(tables)} tables")
-                
-                if tables:
+                try:
+                    response = page.goto(url, wait_until="networkidle", timeout=30000)
+                    
+                    if response.status != 200:
+                        print(f"  ❌ Status {response.status}")
+                        continue
+                    
+                    # Get all table elements
+                    tables = page.query_selector_all("table")
+                    
+                    if not tables:
+                        print(f"  ⚠️ No tables found")
+                        continue
+                    
+                    print(f"  ✅ Found {len(tables)} tables")
+                    found = True
                     successful_scrapes += 1
-                
-                for i, table in enumerate(tables, 1):
-                    # Get all text content from the table
-                    text = table.inner_text()
                     
-                    # Extract all numbers (including decimals and negatives)
-                    numbers = re.findall(r'-?\d+\.?\d*', text)
+                    for i, table in enumerate(tables, 1):
+                        # Get all text content from the table
+                        text = table.inner_text()
+                        
+                        # Extract all numbers (including decimals and negatives)
+                        numbers = re.findall(r'-?\d+\.?\d*', text)
+                        
+                        table_sum = 0
+                        for num_str in numbers:
+                            if num_str:  # Skip empty strings
+                                try:
+                                    num = float(num_str)
+                                    total_sum += num
+                                    table_sum += num
+                                except ValueError:
+                                    pass
+                        
+                        if table_sum != 0:
+                            print(f"  Table {i} sum: {table_sum}")
                     
-                    table_sum = 0
-                    for num_str in numbers:
-                        if num_str:  # Skip empty strings
-                            try:
-                                num = float(num_str)
-                                total_sum += num
-                                table_sum += num
-                            except ValueError:
-                                pass
-                    
-                    if table_sum != 0:
-                        print(f"  Table {i} sum: {table_sum}")
-                            
-            except Exception as e:
-                print(f"  ❌ Error: {str(e)[:100]}")
+                    break  # Found working URL, move to next seed
+                                
+                except Exception as e:
+                    print(f"  ❌ Error: {str(e)[:100]}")
+                    continue
+            
+            if not found:
+                print(f"  ⚠️ No working URL found for seed{seed}")
         
         browser.close()
     
