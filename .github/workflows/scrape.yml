@@ -1,0 +1,33 @@
+name: Table Scraper QA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  scrape-and-sum:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+      
+      - name: Install Playwright browsers
+        run: |
+          playwright install chromium
+          playwright install-deps
+      
+      - name: Run scraper - 23f3004135@ds.study.iitm.ac.in
+        run: |
+          python scrape_tables.py
